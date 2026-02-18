@@ -1,3 +1,4 @@
+import sys
 import streamlit as st
 import pandas as pd
 import json
@@ -169,11 +170,12 @@ def write_request_json(ex_i):
 
 def run_generate_script(request_path):
     result = subprocess.run(
-        ["python", "scripts/generate_audio.py", "--request", request_path],
+        [sys.executable, "scripts/generate_audio.py", "--request", request_path],
         capture_output=True,
         text=True,
     )
     return result.returncode, result.stdout, result.stderr
+
 
 def submit_all_changes(ex_i):
     st.session_state.status_message = "Submitting changes..."
