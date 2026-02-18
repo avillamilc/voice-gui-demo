@@ -179,7 +179,6 @@ if not selected_words:
 # anchor word = first selected
 anchor_idx = selected_words[0]
 
-
 if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
     load_word_into_sliders(ex_i, anchor_idx)
 
