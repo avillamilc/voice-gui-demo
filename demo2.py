@@ -5,36 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
-st.set_page_config(page_title="Demo", layout="wide")
-
-st.markdown(
-    """
-    <style>
-    .block-container {
-        max-width: 1100px;
-        padding-left: 2rem;
-        padding-right: 2rem;
-    }
-
-    .word-pill {
-        display: inline-block;
-        padding: 0.45rem 0.6rem;
-        border-radius: 10px;
-        text-align: center;
-        width: 100%;
-        font-weight: 600;
-        border: 1px solid #d1d5db;
-        background: #f3f4f6;
-    }
-    .word-pill.selected {
-        background: #2563EB;
-        color: white;
-        border: 1px solid #2563EB;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.set_page_config(page_title="Demo", layout="centered")
 
 @st.cache_data
 def load_trials(path="data/trials.csv"):
