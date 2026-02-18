@@ -1,0 +1,6 @@
+audio_id,original,baseline,transcript
+1,audio/original/1_original.wav,audio/baseline/1_vanilla.wav,"All right have you played this game before"
+2,audio/original/2_original.wav,audio/baseline/2_vanilla.wav,"All right so you are going to be the lava boy down there"
+3,audio/original/3_original.wav,audio/baseline/3_vanilla.wav,"You are going to move with the arrow keys"
+4,audio/original/4_original.wav,audio/baseline/4_vanilla.wav,"Basically you can't touch what's opposite of you"
+5,audio/original/5_original.wav,audio/baseline/5_vanilla.wav,"So if you are fire so you can go into the fire but you can't go into the water"

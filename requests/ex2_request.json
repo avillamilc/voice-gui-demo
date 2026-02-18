@@ -1,0 +1,98 @@
+{
+  "audio_id": 2,
+  "baseline_path": "audio/baseline/2_vanilla.wav",
+  "word_params": {
+    "0": {
+      "breathiness": 0.1,
+      "creakiness": 0.2,
+      "nasality": 0.3,
+      "average_pitch": -1.5,
+      "average_range": -1.6
+    },
+    "1": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "2": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "3": {
+      "breathiness": 0.1,
+      "creakiness": 0.2,
+      "nasality": 0.3,
+      "average_pitch": -1.5,
+      "average_range": -1.6
+    },
+    "4": {
+      "breathiness": 0.1,
+      "creakiness": 0.2,
+      "nasality": 0.3,
+      "average_pitch": -1.5,
+      "average_range": -1.6
+    },
+    "5": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "6": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "7": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "8": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "9": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "10": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "11": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "12": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    }
+  },
+  "output_path": "generated/ex2_generated.wav"
+}

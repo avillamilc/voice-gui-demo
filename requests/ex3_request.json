@@ -1,0 +1,70 @@
+{
+  "audio_id": 3,
+  "baseline_path": "audio/baseline/3_vanilla.wav",
+  "word_params": {
+    "0": {
+      "breathiness": 1.9,
+      "creakiness": 1.9,
+      "nasality": 1.9,
+      "average_pitch": 1.9,
+      "average_range": 1.9
+    },
+    "1": {
+      "breathiness": 1.9,
+      "creakiness": 1.9,
+      "nasality": 1.9,
+      "average_pitch": 1.9,
+      "average_range": 1.9
+    },
+    "2": {
+      "breathiness": 1.9,
+      "creakiness": 1.9,
+      "nasality": 1.9,
+      "average_pitch": 1.9,
+      "average_range": 1.9
+    },
+    "3": {
+      "breathiness": 1.9,
+      "creakiness": 1.9,
+      "nasality": 1.9,
+      "average_pitch": 1.9,
+      "average_range": 1.9
+    },
+    "4": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "5": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "6": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "7": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    },
+    "8": {
+      "breathiness": 0.0,
+      "creakiness": 0.0,
+      "nasality": 0.0,
+      "average_pitch": 0.0,
+      "average_range": 0.0
+    }
+  },
+  "output_path": "generated/ex3_generated.wav"
+}
