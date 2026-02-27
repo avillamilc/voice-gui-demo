@@ -12,7 +12,7 @@ def load_trials(path="data/trials.csv"):
     df = pd.read_csv(path)
     return df.to_dict(orient="records")
 
-examples = load_trials()
+built_in_examples = load_trials()
 
 PARAMS = ["breathiness", "creakiness", "nasality", "average_pitch", "average_range"]
 
@@ -35,14 +35,89 @@ if "status_message" not in st.session_state:
     st.session_state.status_message = "No changes applied"
 
 if "generated_audio" not in st.session_state:
-    st.session_state.generated_audio = {}  
+    st.session_state.generated_audio = {}
     # {ex_i: "generated/ex1_generated.wav"}
+
+# --- NEW: temporary user-uploaded trials ---
+if "user_trials" not in st.session_state:
+    st.session_state.user_trials = []  # list of dict trials, same schema as CSV
+
+# --- NEW: folders for temp uploads ---
+Path("uploads").mkdir(exist_ok=True)
+Path("requests").mkdir(exist_ok=True)
+Path("generated").mkdir(exist_ok=True)
+
+# Combine built-in + user uploaded trials
+examples = built_in_examples + st.session_state.user_trials
+
+
+# --- NEW: upload UI (optional trials) ---
+st.subheader("Add your own trial (optional)")
+up_col1, up_col2 = st.columns(2)
+
+with up_col1:
+    uploaded_baseline = st.file_uploader("Upload baseline WAV (required)", type=["wav"], key="upload_baseline")
+
+with up_col2:
+    uploaded_original = st.file_uploader("Upload original WAV (optional)", type=["wav"], key="upload_original")
+
+uploaded_transcript = st.text_area("Transcript (required)", key="upload_transcript", placeholder="Type the transcript here...")
+
+add_col1, add_col2 = st.columns([1, 3])
+with add_col1:
+    add_trial_clicked = st.button("Add trial", use_container_width=True)
+
+with add_col2:
+    st.caption("Trials added here are temporary (for testing). They reset when the session resets.")
+
+if add_trial_clicked:
+    if uploaded_baseline is None:
+        st.session_state.status_message = "Please upload a baseline WAV."
+    elif not uploaded_transcript.strip():
+        st.session_state.status_message = "Please type the transcript."
+    else:
+        # Create a unique id for this user trial
+        user_id = len(st.session_state.user_trials) + 1
+        audio_id = f"user_{user_id}"
+
+        # Save baseline to uploads/
+        baseline_path = f"uploads/{audio_id}_baseline.wav"
+        with open(baseline_path, "wb") as f:
+            f.write(uploaded_baseline.getbuffer())
+
+        # Save original if provided
+        original_path = ""
+        if uploaded_original is not None:
+            original_path = f"uploads/{audio_id}_original.wav"
+            with open(original_path, "wb") as f:
+                f.write(uploaded_original.getbuffer())
+
+        new_trial = {
+            "audio_id": audio_id,
+            "original": original_path,  # may be ""
+            "baseline": baseline_path,
+            "transcript": uploaded_transcript.strip(),
+        }
+
+        st.session_state.user_trials.append(new_trial)
+
+        # Update examples list and jump to the new trial
+        examples = built_in_examples + st.session_state.user_trials
+        st.session_state.example_index = len(examples) - 1
+
+        st.session_state.status_message = f"Added new trial ({audio_id})."
+
+        # Clear upload widgets (best-effort)
+        st.session_state.upload_transcript = ""
+
+st.divider()
+
 
 def ensure_trial_state(ex_i):
     words = examples[ex_i]["transcript"].split()
     if ex_i not in st.session_state.trial_state:
         st.session_state.trial_state[ex_i] = {
-            "selected_words": [0], 
+            "selected_words": [0],
             "word_params": {i: default_param() for i in range(len(words))},
         }
     else:
@@ -127,7 +202,7 @@ def write_request_json(ex_i):
     out_path = f"generated/ex{ex_i+1}_generated.wav"
 
     req = {
-        "audio_id": int(trial.get("audio_id", ex_i + 1)),
+        "audio_id": trial.get("audio_id", ex_i + 1),
         "baseline_path": trial["baseline"],
         "word_params": wp_json,
         "output_path": out_path,
@@ -169,6 +244,14 @@ def submit_all_changes(ex_i):
 
 # Current example context
 ex_i = st.session_state.example_index
+
+# refresh examples after potential upload (important)
+examples = built_in_examples + st.session_state.user_trials
+
+# clamp example index just in case
+st.session_state.example_index = max(0, min(st.session_state.example_index, len(examples) - 1))
+ex_i = st.session_state.example_index
+
 transcript_words = ensure_trial_state(ex_i)
 
 selected_words = st.session_state.trial_state[ex_i]["selected_words"]
@@ -186,7 +269,10 @@ if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
 st.title(f"Audio {ex_i + 1} of {len(examples)}")
 
 st.header("Original Audio:")
-st.audio(examples[ex_i]["original"])
+if examples[ex_i].get("original"):
+    st.audio(examples[ex_i]["original"])
+else:
+    st.info("No original audio provided for this trial.")
 st.divider()
 
 st.header("Baseline Audio:")
