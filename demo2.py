@@ -211,6 +211,26 @@ st.write("")
 st.write("")
 
 st.slider(
+    "Average Pitch",
+    -2.0,
+    2.0,
+    step=0.1,
+    key=slider_key(ex_i, anchor_idx, "average_pitch"),
+    on_change=save_sliders_into_word,
+    args=(ex_i, anchor_idx),
+)
+
+st.slider(
+    "Average Range",
+    -2.0,
+    2.0,
+    step=0.1,
+    key=slider_key(ex_i, anchor_idx, "average_range"),
+    on_change=save_sliders_into_word,
+    args=(ex_i, anchor_idx),
+)
+
+st.slider(
     "Breathiness",
     0.0,
     2.0,
@@ -236,26 +256,6 @@ st.slider(
     2.0,
     step=0.1,
     key=slider_key(ex_i, anchor_idx, "nasality"),
-    on_change=save_sliders_into_word,
-    args=(ex_i, anchor_idx),
-)
-
-st.slider(
-    "Average Pitch",
-    -2.0,
-    2.0,
-    step=0.1,
-    key=slider_key(ex_i, anchor_idx, "average_pitch"),
-    on_change=save_sliders_into_word,
-    args=(ex_i, anchor_idx),
-)
-
-st.slider(
-    "Average Range",
-    -2.0,
-    2.0,
-    step=0.1,
-    key=slider_key(ex_i, anchor_idx, "average_range"),
     on_change=save_sliders_into_word,
     args=(ex_i, anchor_idx),
 )
