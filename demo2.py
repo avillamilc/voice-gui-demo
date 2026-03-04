@@ -7,6 +7,17 @@ from pathlib import Path
 
 st.set_page_config(page_title="Demo", layout="centered")
 
+st.markdown("""
+<style>
+section.main > div {
+    max-width: 1100px;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    margin: 0 auto;
+}
+</style>
+""", unsafe_allow_html=True)
+
 @st.cache_data
 def load_trials(path="data/trials.csv"):
     df = pd.read_csv(path)
@@ -38,11 +49,15 @@ if "generated_audio" not in st.session_state:
     st.session_state.generated_audio = {}
     # {ex_i: "generated/ex1_generated.wav"}
 
-# --- NEW: temporary user-uploaded trials ---
 if "user_trials" not in st.session_state:
     st.session_state.user_trials = []  # list of dict trials, same schema as CSV
 
-# --- NEW: folders for temp uploads ---
+if "show_add_trial" not in st.session_state:
+    st.session_state.show_add_trial = False
+
+if "upload_nonce" not in st.session_state:
+    st.session_state.upload_nonce = 0
+
 Path("uploads").mkdir(exist_ok=True)
 Path("requests").mkdir(exist_ok=True)
 Path("generated").mkdir(exist_ok=True)
@@ -50,67 +65,42 @@ Path("generated").mkdir(exist_ok=True)
 # Combine built-in + user uploaded trials
 examples = built_in_examples + st.session_state.user_trials
 
+def toggle_add_trial_ui():
+    st.session_state.show_add_trial = not st.session_state.show_add_trial
 
-# --- NEW: upload UI (optional trials) ---
-st.subheader("Add your own trial (optional)")
-up_col1, up_col2 = st.columns(2)
+def add_user_trial(baseline_file, original_file, transcript_text):
+    # baseline is required, transcript required
+    user_id = len(st.session_state.user_trials) + 1
+    audio_id = f"user_{user_id}"
 
-with up_col1:
-    uploaded_baseline = st.file_uploader("Upload baseline WAV (required)", type=["wav"], key="upload_baseline")
+    baseline_path = f"uploads/{audio_id}_baseline.wav"
+    with open(baseline_path, "wb") as f:
+        f.write(baseline_file.getbuffer())
 
-with up_col2:
-    uploaded_original = st.file_uploader("Upload original WAV (optional)", type=["wav"], key="upload_original")
+    original_path = ""
+    if original_file is not None:
+        original_path = f"uploads/{audio_id}_original.wav"
+        with open(original_path, "wb") as f:
+            f.write(original_file.getbuffer())
 
-uploaded_transcript = st.text_area("Transcript (required)", key="upload_transcript", placeholder="Type the transcript here...")
+    new_trial = {
+        "audio_id": audio_id,
+        "original": original_path,  # may be ""
+        "baseline": baseline_path,
+        "transcript": transcript_text.strip(),
+    }
 
-add_col1, add_col2 = st.columns([1, 3])
-with add_col1:
-    add_trial_clicked = st.button("Add trial", use_container_width=True)
+    st.session_state.user_trials.append(new_trial)
 
-with add_col2:
-    st.caption("Trials added here are temporary (for testing). They reset when the session resets.")
+    # jump to the new trial
+    all_trials = built_in_examples + st.session_state.user_trials
+    st.session_state.example_index = len(all_trials) - 1
 
-if add_trial_clicked:
-    if uploaded_baseline is None:
-        st.session_state.status_message = "Please upload a baseline WAV."
-    elif not uploaded_transcript.strip():
-        st.session_state.status_message = "Please type the transcript."
-    else:
-        # Create a unique id for this user trial
-        user_id = len(st.session_state.user_trials) + 1
-        audio_id = f"user_{user_id}"
+    # hide form + reset widgets
+    st.session_state.show_add_trial = False
+    st.session_state.upload_nonce += 1
 
-        # Save baseline to uploads/
-        baseline_path = f"uploads/{audio_id}_baseline.wav"
-        with open(baseline_path, "wb") as f:
-            f.write(uploaded_baseline.getbuffer())
-
-        # Save original if provided
-        original_path = ""
-        if uploaded_original is not None:
-            original_path = f"uploads/{audio_id}_original.wav"
-            with open(original_path, "wb") as f:
-                f.write(uploaded_original.getbuffer())
-
-        new_trial = {
-            "audio_id": audio_id,
-            "original": original_path,  # may be ""
-            "baseline": baseline_path,
-            "transcript": uploaded_transcript.strip(),
-        }
-
-        st.session_state.user_trials.append(new_trial)
-
-        # Update examples list and jump to the new trial
-        examples = built_in_examples + st.session_state.user_trials
-        st.session_state.example_index = len(examples) - 1
-
-        st.session_state.status_message = f"Added new trial ({audio_id})."
-
-        # Clear upload widgets (best-effort)
-        st.session_state.upload_transcript = ""
-
-st.divider()
+    st.session_state.status_message = f"Added new trial ({audio_id})."
 
 
 def ensure_trial_state(ex_i):
@@ -243,9 +233,7 @@ def submit_all_changes(ex_i):
 
 
 # Current example context
-ex_i = st.session_state.example_index
-
-# refresh examples after potential upload (important)
+# refresh examples after potential upload
 examples = built_in_examples + st.session_state.user_trials
 
 # clamp example index just in case
@@ -265,8 +253,54 @@ anchor_idx = selected_words[0]
 if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
     load_word_into_sliders(ex_i, anchor_idx)
 
-# UI
-st.title(f"Audio {ex_i + 1} of {len(examples)}")
+
+# --- UI STARTS HERE ---
+
+top_left, top_right = st.columns([7, 2])
+with top_left:
+    st.title(f"Audio {ex_i + 1} of {len(examples)}")
+
+with top_right:
+    # Minimal button that opens a clean popover (does not push the layout)
+    with st.popover("➕"):
+        st.markdown("**Add new trial**")
+        st.caption("User-added trials are temporary. They reset when the session resets.")
+
+        up_col1, up_col2 = st.columns(2)
+
+        with up_col1:
+            uploaded_baseline = st.file_uploader(
+                "Baseline WAV (required)",
+                type=["wav"],
+                key=f"upload_baseline_{st.session_state.upload_nonce}"
+            )
+
+        with up_col2:
+            uploaded_original = st.file_uploader(
+                "Original WAV (optional)",
+                type=["wav"],
+                key=f"upload_original_{st.session_state.upload_nonce}"
+            )
+
+        uploaded_transcript = st.text_area(
+            "Transcript (required)",
+            key=f"upload_transcript_{st.session_state.upload_nonce}",
+            placeholder="Type the transcript here..."
+        )
+
+        save_clicked = st.button("Save trial", type="primary", use_container_width=True)
+
+        if save_clicked:
+            if uploaded_baseline is None:
+                st.session_state.status_message = "Please upload a baseline WAV."
+            elif not uploaded_transcript.strip():
+                st.session_state.status_message = "Please type the transcript."
+            else:
+                add_user_trial(uploaded_baseline, uploaded_original, uploaded_transcript)
+                # NEW: reset uploader/text_area keys so the next add is clean
+                st.session_state.upload_nonce += 1
+                st.rerun()
+
 
 st.header("Original Audio:")
 if examples[ex_i].get("original"):
@@ -278,19 +312,23 @@ st.divider()
 st.header("Baseline Audio:")
 st.audio(examples[ex_i]["baseline"])
 
-cols = st.columns(len(transcript_words))
+# chunk words per row so it doesn't collapse on small widths
+words_per_row = 6
 
-for i, word in enumerate(transcript_words):
-    with cols[i]:
-        st.button(
-            word,
-            key=f"word_ex{ex_i}_{i}",
-            on_click=toggle_word,
-            args=(ex_i, i),
-            use_container_width=True,
-            type="primary" if (i in selected_words) else "secondary",
-        )
-
+for start in range(0, len(transcript_words), words_per_row):
+    row_words = transcript_words[start:start + words_per_row]
+    cols = st.columns(words_per_row)
+    for j, word in enumerate(row_words):
+        i = start + j
+        with cols[j]:
+            st.button(
+                word,
+                key=f"word_ex{ex_i}_{i}",
+                on_click=toggle_word,
+                args=(ex_i, i),
+                use_container_width=True,
+                type="primary" if (i in selected_words) else "secondary",
+            )
 
 st.write("")
 st.write("")
@@ -385,6 +423,8 @@ with nxt:
     )
 
 st.info(f"Status: {st.session_state.status_message}")
+
+st.divider()
 
 with st.expander("Word parameters (current example)"):
     wp = st.session_state.trial_state[ex_i]["word_params"]
