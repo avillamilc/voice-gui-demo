@@ -256,7 +256,7 @@ if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
 
 # --- UI STARTS HERE ---
 
-top_left, top_right = st.columns([7, 2])
+top_left, top_right = st.columns([7, 1])
 with top_left:
     st.title(f"Audio {ex_i + 1} of {len(examples)}")
 
