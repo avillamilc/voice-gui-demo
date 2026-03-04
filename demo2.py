@@ -7,6 +7,7 @@ from pathlib import Path
 
 st.set_page_config(page_title="Demo", layout="centered")
 
+# Page width and padding
 st.markdown("""
 <style>
 section.main > div {
@@ -25,6 +26,7 @@ def load_trials(path="data/trials.csv"):
 
 built_in_examples = load_trials()
 
+# Parameters controlled by sliders
 PARAMS = ["breathiness", "creakiness", "nasality", "average_pitch", "average_range"]
 
 def default_param():
@@ -49,15 +51,18 @@ if "generated_audio" not in st.session_state:
     st.session_state.generated_audio = {}
     # {ex_i: "generated/ex1_generated.wav"}
 
+# User-uploaded trials live only for the current session
 if "user_trials" not in st.session_state:
-    st.session_state.user_trials = []  # list of dict trials, same schema as CSV
+    st.session_state.user_trials = []
 
 if "show_add_trial" not in st.session_state:
     st.session_state.show_add_trial = False
 
+# Used to reset uploader widgets cleanly after saving a trial
 if "upload_nonce" not in st.session_state:
     st.session_state.upload_nonce = 0
 
+# Local folders used by the app
 Path("uploads").mkdir(exist_ok=True)
 Path("requests").mkdir(exist_ok=True)
 Path("generated").mkdir(exist_ok=True)
@@ -66,6 +71,7 @@ Path("generated").mkdir(exist_ok=True)
 examples = built_in_examples + st.session_state.user_trials
 
 def toggle_add_trial_ui():
+    # Show or hide the upload UI
     st.session_state.show_add_trial = not st.session_state.show_add_trial
 
 def add_user_trial(baseline_file, original_file, transcript_text):
@@ -73,16 +79,19 @@ def add_user_trial(baseline_file, original_file, transcript_text):
     user_id = len(st.session_state.user_trials) + 1
     audio_id = f"user_{user_id}"
 
+    # Save baseline locally so the generator can read it
     baseline_path = f"uploads/{audio_id}_baseline.wav"
     with open(baseline_path, "wb") as f:
         f.write(baseline_file.getbuffer())
 
+    # Original is optional
     original_path = ""
     if original_file is not None:
         original_path = f"uploads/{audio_id}_original.wav"
         with open(original_path, "wb") as f:
             f.write(original_file.getbuffer())
 
+    # Trial follows the same schema as trials.csv
     new_trial = {
         "audio_id": audio_id,
         "original": original_path,  # may be ""
@@ -104,6 +113,7 @@ def add_user_trial(baseline_file, original_file, transcript_text):
 
 
 def ensure_trial_state(ex_i):
+    # Creates the per-trial state the first time we visit it
     words = examples[ex_i]["transcript"].split()
     if ex_i not in st.session_state.trial_state:
         st.session_state.trial_state[ex_i] = {
@@ -111,16 +121,19 @@ def ensure_trial_state(ex_i):
             "word_params": {i: default_param() for i in range(len(words))},
         }
     else:
+        # Keep at least one selected word at all times
         if "selected_words" not in st.session_state.trial_state[ex_i] or not st.session_state.trial_state[ex_i]["selected_words"]:
             st.session_state.trial_state[ex_i]["selected_words"] = [0]
     return words
 
 def load_word_into_sliders(ex_i, word_i):
+    # Push the stored word params into the visible slider widgets
     wp = st.session_state.trial_state[ex_i]["word_params"][word_i]
     for p in PARAMS:
         st.session_state[slider_key(ex_i, word_i, p)] = float(wp[p])
 
 def toggle_word(ex_i, word_i):
+    # Select or deselect a word in the transcript
     selected = st.session_state.trial_state[ex_i]["selected_words"]
 
     if word_i in selected:
@@ -139,6 +152,7 @@ def toggle_word(ex_i, word_i):
     st.session_state.status_message = f"Selected {len(selected)} word(s)."
 
 def save_sliders_into_word(ex_i, anchor_word_i):
+    # Applies the anchor slider values to every selected word
     selected = st.session_state.trial_state[ex_i]["selected_words"]
 
     # read values from anchor sliders
@@ -153,6 +167,7 @@ def save_sliders_into_word(ex_i, anchor_word_i):
     st.session_state.status_message = f"Edit in progress: updated {len(selected)} word(s)."
 
 def reset_word(ex_i, anchor_word_i):
+    # Resets params only for the currently selected words
     selected = st.session_state.trial_state[ex_i]["selected_words"]
     for wi in selected:
         st.session_state.trial_state[ex_i]["word_params"][wi] = default_param()
@@ -164,6 +179,7 @@ def reset_word(ex_i, anchor_word_i):
     st.session_state.status_message = f"Parameters reset for {len(selected)} selected word(s)."
 
 def reset_all(ex_i):
+    # Resets params for the entire transcript of this trial
     words = examples[ex_i]["transcript"].split()
     st.session_state.trial_state[ex_i]["word_params"] = {i: default_param() for i in range(len(words))}
     st.session_state.trial_state[ex_i]["selected_words"] = [0]
@@ -175,20 +191,25 @@ def reset_all(ex_i):
         del st.session_state.generated_audio[ex_i]
 
 def prev_example():
+    # Go to the previous trial
     st.session_state.example_index = max(0, st.session_state.example_index - 1)
     st.session_state.status_message = f"Moved to example {st.session_state.example_index + 1}"
 
 def next_example():
+    # Go to the next trial
     st.session_state.example_index = min(len(examples) - 1, st.session_state.example_index + 1)
     st.session_state.status_message = f"Moved to example {st.session_state.example_index + 1}"
 
 def write_request_json(ex_i):
+    # Writes a request file that the backend script can consume
     trial = examples[ex_i]
     words = trial["transcript"].split()
     wp = st.session_state.trial_state[ex_i]["word_params"]
 
+    # Convert indices to strings to keep JSON simple
     wp_json = {str(i): {k: float(v) for k, v in wp[i].items()} for i in range(len(words))}
 
+    # Output is overwritten per example for now
     out_path = f"generated/ex{ex_i+1}_generated.wav"
 
     req = {
@@ -205,6 +226,7 @@ def write_request_json(ex_i):
     return req_path, out_path
 
 def run_generate_script(request_path):
+    # Runs the generator as a separate process
     result = subprocess.run(
         [sys.executable, "scripts/generate_audio.py", "--request", request_path],
         capture_output=True,
@@ -214,6 +236,7 @@ def run_generate_script(request_path):
 
 
 def submit_all_changes(ex_i):
+    # Generates a new modified audio for the current trial
     st.session_state.status_message = "Submitting changes..."
 
     req_path, out_path = write_request_json(ex_i)
@@ -250,6 +273,7 @@ if not selected_words:
 # anchor word = first selected
 anchor_idx = selected_words[0]
 
+# Load slider values the first time we land on this anchor
 if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
     load_word_into_sliders(ex_i, anchor_idx)
 
@@ -261,7 +285,6 @@ with top_left:
     st.title(f"Audio {ex_i + 1} of {len(examples)}")
 
 with top_right:
-    # Minimal button that opens a clean popover (does not push the layout)
     with st.popover("➕"):
         st.markdown("**Add new trial**")
         st.caption("User-added trials are temporary. They reset when the session resets.")
@@ -334,6 +357,7 @@ st.write("")
 st.write("")
 st.write("")
 
+# Sliders reflect the anchor word but apply to all selected words
 st.slider(
     "Average Pitch",
     -2.0,
@@ -399,7 +423,7 @@ with c3:
 st.divider()
 
 st.header("Modified Audio:")
-# Only playable after user submits (generated exists). Otherwise show a message.
+# Only playable after user submits. Otherwise show a message.
 if ex_i in st.session_state.generated_audio:
     st.audio(st.session_state.generated_audio[ex_i])
 else:
