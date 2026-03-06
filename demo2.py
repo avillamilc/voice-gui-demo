@@ -111,6 +111,44 @@ def add_user_trial(baseline_file, original_file, transcript_text):
 
     st.session_state.status_message = f"Added new trial ({audio_id})."
 
+def render_add_trial_popover():
+    with st.popover("➕"):
+        st.markdown("**Add new trial**")
+        st.caption("User-added trials are temporary. They reset when the session resets.")
+
+        up_col1, up_col2 = st.columns(2)
+
+        with up_col1:
+            uploaded_baseline = st.file_uploader(
+                "Baseline WAV (required)",
+                type=["wav"],
+                key=f"upload_baseline_{st.session_state.upload_nonce}"
+            )
+
+        with up_col2:
+            uploaded_original = st.file_uploader(
+                "Original WAV (optional)",
+                type=["wav"],
+                key=f"upload_original_{st.session_state.upload_nonce}"
+            )
+
+        uploaded_transcript = st.text_area(
+            "Transcript (required)",
+            key=f"upload_transcript_{st.session_state.upload_nonce}",
+            placeholder="Type the transcript here..."
+        )
+
+        save_clicked = st.button("Save trial", type="primary", use_container_width=True)
+
+        if save_clicked:
+            if uploaded_baseline is None:
+                st.session_state.status_message = "Please upload a baseline WAV."
+            elif not uploaded_transcript.strip():
+                st.session_state.status_message = "Please type the transcript."
+            else:
+                add_user_trial(uploaded_baseline, uploaded_original, uploaded_transcript)
+                st.session_state.upload_nonce += 1
+                st.rerun()
 
 def ensure_trial_state(ex_i):
     # Creates the per-trial state the first time we visit it
@@ -127,7 +165,7 @@ def ensure_trial_state(ex_i):
             st.session_state.trial_state[ex_i]["selected_words"] = [0]
             st.session_state.trial_state[ex_i]["anchor_word"] = 0  # NEW
 
-        # NEW: if anchor is missing or invalid, fall back to first selected
+        # If anchor is missing or invalid, fall back to first selected
         if "anchor_word" not in st.session_state.trial_state[ex_i]:
             st.session_state.trial_state[ex_i]["anchor_word"] = st.session_state.trial_state[ex_i]["selected_words"][0]
 
@@ -148,7 +186,7 @@ def toggle_word(ex_i, word_i):
         if len(selected) > 1:
             selected.remove(word_i)
 
-            # NEW: if user removed the anchor, pick a new anchor (keep it simple)
+            # If user removed the anchor, pick a new anchor
             if word_i == anchor:
                 st.session_state.trial_state[ex_i]["anchor_word"] = selected[0]
         else:
@@ -157,24 +195,8 @@ def toggle_word(ex_i, word_i):
     else:
         selected.append(word_i)
 
-        # NEW: if this is the first “meaningful” selection change, set anchor
-        # We only change the anchor when:
-        # 1) there is currently exactly 1 selected word and user adds another, OR
-        # 2) anchor is not in the selection for some reason
-        if anchor not in selected:
-            st.session_state.trial_state[ex_i]["anchor_word"] = word_i
-        elif len(selected) == 2 and selected[0] != word_i and selected[1] != anchor:
-            # safe no-op, but leaving this line would be confusing, so we don't do anything
-            pass
 
-        # Better rule: if user is adding a word and anchor is still selected, do NOT change anchor.
-        # So we intentionally do nothing here.
-
-    # If you still want the UI list ordered, sort for display only.
-    # CHANGED: remove selected.sort() so anchor doesn't change based on smallest index
-    # selected.sort()
-
-    anchor = st.session_state.trial_state[ex_i]["anchor_word"]  # NEW: re-read anchor
+    anchor = st.session_state.trial_state[ex_i]["anchor_word"] 
     load_word_into_sliders(ex_i, anchor)
     st.session_state.status_message = f"Selected {len(selected)} word(s)."
 
@@ -287,6 +309,19 @@ def submit_all_changes(ex_i):
 # refresh examples after potential upload
 examples = built_in_examples + st.session_state.user_trials
 
+# Empty state when there are no trials
+if len(examples) == 0:
+    top_left, top_right = st.columns([7, 1])
+
+    with top_left:
+        st.title("No trials available")
+
+    with top_right:
+        render_add_trial_popover()
+
+    st.info("Click the ➕ button to add a trial before starting.")
+    st.stop()
+
 # clamp example index just in case
 st.session_state.example_index = max(0, min(st.session_state.example_index, len(examples) - 1))
 ex_i = st.session_state.example_index
@@ -317,44 +352,7 @@ with top_left:
     st.title(f"Audio {ex_i + 1} of {len(examples)}")
 
 with top_right:
-    with st.popover("➕"):
-        st.markdown("**Add new trial**")
-        st.caption("User-added trials are temporary. They reset when the session resets.")
-
-        up_col1, up_col2 = st.columns(2)
-
-        with up_col1:
-            uploaded_baseline = st.file_uploader(
-                "Baseline WAV (required)",
-                type=["wav"],
-                key=f"upload_baseline_{st.session_state.upload_nonce}"
-            )
-
-        with up_col2:
-            uploaded_original = st.file_uploader(
-                "Original WAV (optional)",
-                type=["wav"],
-                key=f"upload_original_{st.session_state.upload_nonce}"
-            )
-
-        uploaded_transcript = st.text_area(
-            "Transcript (required)",
-            key=f"upload_transcript_{st.session_state.upload_nonce}",
-            placeholder="Type the transcript here..."
-        )
-
-        save_clicked = st.button("Save trial", type="primary", use_container_width=True)
-
-        if save_clicked:
-            if uploaded_baseline is None:
-                st.session_state.status_message = "Please upload a baseline WAV."
-            elif not uploaded_transcript.strip():
-                st.session_state.status_message = "Please type the transcript."
-            else:
-                add_user_trial(uploaded_baseline, uploaded_original, uploaded_transcript)
-                st.session_state.upload_nonce += 1
-                st.rerun()
-
+    render_add_trial_popover()
 
 st.header("Original Audio:")
 if examples[ex_i].get("original"):
