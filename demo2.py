@@ -39,7 +39,7 @@ def is_valid_trial(trial):
 
     return baseline_ok and transcript_ok
 
-# NEW: filter invalid built-in trials once and keep count
+# Filter invalid built-in trials once and keep count
 _loaded_trials = load_trials()
 built_in_examples = []
 invalid_trial_count = 0
@@ -204,7 +204,7 @@ def load_word_into_sliders(ex_i, word_i):
 def toggle_word(ex_i, word_i):
     # Select or deselect a word in the transcript
     selected = st.session_state.trial_state[ex_i]["selected_words"]
-    anchor = st.session_state.trial_state[ex_i]["anchor_word"]  # NEW
+    anchor = st.session_state.trial_state[ex_i]["anchor_word"]
 
     if word_i in selected:
         if len(selected) > 1:
@@ -218,6 +218,16 @@ def toggle_word(ex_i, word_i):
             return
     else:
         selected.append(word_i)
+
+        # Copy current anchor values into the newly selected word right away
+        anchor_params = st.session_state.trial_state[ex_i]["word_params"][anchor]
+        st.session_state.trial_state[ex_i]["word_params"][word_i] = {
+            p: float(anchor_params[p]) for p in PARAMS
+        }
+
+        # Keep widget state in sync for that word too
+        for p in PARAMS:
+            st.session_state[slider_key(ex_i, word_i, p)] = float(anchor_params[p])
 
     anchor = st.session_state.trial_state[ex_i]["anchor_word"]
     load_word_into_sliders(ex_i, anchor)
@@ -360,7 +370,7 @@ if not selected_words:
     selected_words = [0]
     st.session_state.trial_state[ex_i]["selected_words"] = selected_words
 
-# CHANGED: anchor word comes from explicit state now
+# anchor word comes from explicit state now
 anchor_idx = st.session_state.trial_state[ex_i]["anchor_word"]
 
 # Clamp anchor just in case
