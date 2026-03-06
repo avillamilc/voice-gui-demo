@@ -1,3 +1,4 @@
+from streamlit_extras.stylable_container import stylable_container
 import sys
 import streamlit as st
 import pandas as pd
@@ -19,7 +20,6 @@ section.main > div {
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data
 def load_trials(path="data/trials.csv"):
     try:
         df = pd.read_csv(path)
@@ -56,6 +56,14 @@ PARAMS = ["breathiness", "creakiness", "nasality", "average_pitch", "average_ran
 def default_param():
     return {p: 0.0 for p in PARAMS}
 
+def word_is_modified(ex_i, word_i):
+    # Returns True if the word has parameters different from the default.
+    wp = st.session_state.trial_state[ex_i]["word_params"][word_i]
+    for p in PARAMS:
+        if wp[p] != 0.0:
+            return True
+    return False
+
 def slider_key(ex_i, word_i, param):
     return f"ex{ex_i}_{word_i}_{param}"
 
@@ -79,9 +87,6 @@ if "generated_audio" not in st.session_state:
 if "user_trials" not in st.session_state:
     st.session_state.user_trials = []
 
-if "show_add_trial" not in st.session_state:
-    st.session_state.show_add_trial = False
-
 # Used to reset uploader widgets cleanly after saving a trial
 if "upload_nonce" not in st.session_state:
     st.session_state.upload_nonce = 0
@@ -93,10 +98,6 @@ Path("generated").mkdir(exist_ok=True)
 
 # Combine built-in + user uploaded trials
 examples = built_in_examples + st.session_state.user_trials
-
-def toggle_add_trial_ui():
-    # Show or hide the upload UI
-    st.session_state.show_add_trial = not st.session_state.show_add_trial
 
 def add_user_trial(baseline_file, original_file, transcript_text):
     # baseline is required, transcript required
@@ -129,8 +130,7 @@ def add_user_trial(baseline_file, original_file, transcript_text):
     all_trials = built_in_examples + st.session_state.user_trials
     st.session_state.example_index = len(all_trials) - 1
 
-    # hide form + reset widgets
-    st.session_state.show_add_trial = False
+    # reset widgets
     st.session_state.upload_nonce += 1
 
     st.session_state.status_message = f"Added new trial ({audio_id})."
@@ -180,14 +180,14 @@ def ensure_trial_state(ex_i):
     if ex_i not in st.session_state.trial_state:
         st.session_state.trial_state[ex_i] = {
             "selected_words": [0],
-            "anchor_word": 0,  # NEW: explicit anchor
+            "anchor_word": 0,
             "word_params": {i: default_param() for i in range(len(words))},
         }
     else:
         # Keep at least one selected word at all times
         if "selected_words" not in st.session_state.trial_state[ex_i] or not st.session_state.trial_state[ex_i]["selected_words"]:
             st.session_state.trial_state[ex_i]["selected_words"] = [0]
-            st.session_state.trial_state[ex_i]["anchor_word"] = 0  # NEW
+            st.session_state.trial_state[ex_i]["anchor_word"] = 0
 
         # If anchor is missing or invalid, fall back to first selected
         if "anchor_word" not in st.session_state.trial_state[ex_i]:
@@ -219,15 +219,7 @@ def toggle_word(ex_i, word_i):
     else:
         selected.append(word_i)
 
-        # Copy current anchor values into the newly selected word right away
-        anchor_params = st.session_state.trial_state[ex_i]["word_params"][anchor]
-        st.session_state.trial_state[ex_i]["word_params"][word_i] = {
-            p: float(anchor_params[p]) for p in PARAMS
-        }
-
-        # Keep widget state in sync for that word too
-        for p in PARAMS:
-            st.session_state[slider_key(ex_i, word_i, p)] = float(anchor_params[p])
+        st.session_state.trial_state[ex_i]["word_params"][word_i] = default_param()
 
     anchor = st.session_state.trial_state[ex_i]["anchor_word"]
     load_word_into_sliders(ex_i, anchor)
@@ -265,7 +257,7 @@ def reset_all(ex_i):
     words = examples[ex_i]["transcript"].split()
     st.session_state.trial_state[ex_i]["word_params"] = {i: default_param() for i in range(len(words))}
     st.session_state.trial_state[ex_i]["selected_words"] = [0]
-    st.session_state.trial_state[ex_i]["anchor_word"] = 0  # NEW
+    st.session_state.trial_state[ex_i]["anchor_word"] = 0
     load_word_into_sliders(ex_i, 0)
     st.session_state.status_message = "Parameters reset for all words."
 
@@ -316,7 +308,6 @@ def run_generate_script(request_path):
         text=True,
     )
     return result.returncode, result.stdout, result.stderr
-
 
 def submit_all_changes(ex_i):
     # Generates a new modified audio for the current trial
@@ -409,17 +400,50 @@ words_per_row = 6
 for start in range(0, len(transcript_words), words_per_row):
     row_words = transcript_words[start:start + words_per_row]
     cols = st.columns(words_per_row)
+
     for j, word in enumerate(row_words):
         i = start + j
+
         with cols[j]:
-            st.button(
-                word,
-                key=f"word_ex{ex_i}_{i}",
-                on_click=toggle_word,
-                args=(ex_i, i),
-                use_container_width=True,
-                type="primary" if (i in selected_words) else "secondary",
-            )
+            is_selected = i in selected_words
+            is_modified = word_is_modified(ex_i, i)
+
+            if is_selected:
+                button_css = """
+                button {
+                    background-color: #1f77ff;
+                    color: white;
+                    border: 1px solid #1f77ff;
+                }
+                """
+            elif is_modified:
+                button_css = """
+                button {
+                    background-color: #22c55e;
+                    color: white;
+                    border: 1px solid #22c55e;
+                }
+                """
+            else:
+                button_css = """
+                button {
+                    background-color: #f0f2f6;
+                    color: black;
+                    border: 1px solid #ddd;
+                }
+                """
+
+            with stylable_container(
+                key=f"word_container_{ex_i}_{i}",
+                css_styles=button_css
+            ):
+                st.button(
+                    word,
+                    key=f"word_ex{ex_i}_{i}",
+                    on_click=toggle_word,
+                    args=(ex_i, i),
+                    use_container_width=True,
+                )
 
 st.write("")
 st.write("")
