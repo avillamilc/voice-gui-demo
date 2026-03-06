@@ -21,10 +21,34 @@ section.main > div {
 
 @st.cache_data
 def load_trials(path="data/trials.csv"):
-    df = pd.read_csv(path)
-    return df.to_dict(orient="records")
+    try:
+        df = pd.read_csv(path)
+        return df.to_dict(orient="records")
+    except FileNotFoundError:
+        print(f"Warning: {path} not found. No built-in trials will be loaded.")
+        return []
+    except pd.errors.EmptyDataError:
+        print(f"Warning: {path} is empty. No built-in trials will be loaded.")
+        return []
 
-built_in_examples = load_trials()
+def is_valid_trial(trial):
+    baseline_ok = Path(trial["baseline"]).exists()
+
+    transcript_value = trial.get("transcript", "")
+    transcript_ok = pd.notna(transcript_value) and bool(str(transcript_value).strip())
+
+    return baseline_ok and transcript_ok
+
+# NEW: filter invalid built-in trials once and keep count
+_loaded_trials = load_trials()
+built_in_examples = []
+invalid_trial_count = 0
+
+for t in _loaded_trials:
+    if is_valid_trial(t):
+        built_in_examples.append(t)
+    else:
+        invalid_trial_count += 1
 
 # Parameters controlled by sliders
 PARAMS = ["breathiness", "creakiness", "nasality", "average_pitch", "average_range"]
@@ -195,8 +219,7 @@ def toggle_word(ex_i, word_i):
     else:
         selected.append(word_i)
 
-
-    anchor = st.session_state.trial_state[ex_i]["anchor_word"] 
+    anchor = st.session_state.trial_state[ex_i]["anchor_word"]
     load_word_into_sliders(ex_i, anchor)
     st.session_state.status_message = f"Selected {len(selected)} word(s)."
 
@@ -309,6 +332,10 @@ def submit_all_changes(ex_i):
 # refresh examples after potential upload
 examples = built_in_examples + st.session_state.user_trials
 
+# Show a simple warning if some predefined trials were skipped
+if invalid_trial_count > 0:
+    st.warning("Some trials were skipped because their files or transcript were missing.")
+
 # Empty state when there are no trials
 if len(examples) == 0:
     top_left, top_right = st.columns([7, 1])
@@ -355,8 +382,10 @@ with top_right:
     render_add_trial_popover()
 
 st.header("Original Audio:")
-if examples[ex_i].get("original"):
-    st.audio(examples[ex_i]["original"])
+original_path = examples[ex_i].get("original", "")
+
+if original_path and Path(original_path).exists():
+    st.audio(original_path)
 else:
     st.info("No original audio provided for this trial.")
 st.divider()
