@@ -1,3 +1,4 @@
 streamlit==1.37.1
+streamlit-extras
 pandas
 numpy
