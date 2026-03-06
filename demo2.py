@@ -42,7 +42,7 @@ if "example_index" not in st.session_state:
 
 if "trial_state" not in st.session_state:
     st.session_state.trial_state = {}
-    # {example_index: {"selected_words": [int,...], "word_params": {word_index: {param: value}}}}
+    # {example_index: {"selected_words": [int,...], "anchor_word": int, "word_params": {word_index: {param: value}}}}
 
 if "status_message" not in st.session_state:
     st.session_state.status_message = "No changes applied"
@@ -118,12 +118,19 @@ def ensure_trial_state(ex_i):
     if ex_i not in st.session_state.trial_state:
         st.session_state.trial_state[ex_i] = {
             "selected_words": [0],
+            "anchor_word": 0,  # NEW: explicit anchor
             "word_params": {i: default_param() for i in range(len(words))},
         }
     else:
         # Keep at least one selected word at all times
         if "selected_words" not in st.session_state.trial_state[ex_i] or not st.session_state.trial_state[ex_i]["selected_words"]:
             st.session_state.trial_state[ex_i]["selected_words"] = [0]
+            st.session_state.trial_state[ex_i]["anchor_word"] = 0  # NEW
+
+        # NEW: if anchor is missing or invalid, fall back to first selected
+        if "anchor_word" not in st.session_state.trial_state[ex_i]:
+            st.session_state.trial_state[ex_i]["anchor_word"] = st.session_state.trial_state[ex_i]["selected_words"][0]
+
     return words
 
 def load_word_into_sliders(ex_i, word_i):
@@ -135,19 +142,39 @@ def load_word_into_sliders(ex_i, word_i):
 def toggle_word(ex_i, word_i):
     # Select or deselect a word in the transcript
     selected = st.session_state.trial_state[ex_i]["selected_words"]
+    anchor = st.session_state.trial_state[ex_i]["anchor_word"]  # NEW
 
     if word_i in selected:
         if len(selected) > 1:
             selected.remove(word_i)
+
+            # NEW: if user removed the anchor, pick a new anchor (keep it simple)
+            if word_i == anchor:
+                st.session_state.trial_state[ex_i]["anchor_word"] = selected[0]
         else:
             st.session_state.status_message = "You must keep at least one word selected."
             return
     else:
         selected.append(word_i)
-        selected.sort()
 
-    # anchor is always the first selected word
-    anchor = selected[0]
+        # NEW: if this is the first “meaningful” selection change, set anchor
+        # We only change the anchor when:
+        # 1) there is currently exactly 1 selected word and user adds another, OR
+        # 2) anchor is not in the selection for some reason
+        if anchor not in selected:
+            st.session_state.trial_state[ex_i]["anchor_word"] = word_i
+        elif len(selected) == 2 and selected[0] != word_i and selected[1] != anchor:
+            # safe no-op, but leaving this line would be confusing, so we don't do anything
+            pass
+
+        # Better rule: if user is adding a word and anchor is still selected, do NOT change anchor.
+        # So we intentionally do nothing here.
+
+    # If you still want the UI list ordered, sort for display only.
+    # CHANGED: remove selected.sort() so anchor doesn't change based on smallest index
+    # selected.sort()
+
+    anchor = st.session_state.trial_state[ex_i]["anchor_word"]  # NEW: re-read anchor
     load_word_into_sliders(ex_i, anchor)
     st.session_state.status_message = f"Selected {len(selected)} word(s)."
 
@@ -183,6 +210,7 @@ def reset_all(ex_i):
     words = examples[ex_i]["transcript"].split()
     st.session_state.trial_state[ex_i]["word_params"] = {i: default_param() for i in range(len(words))}
     st.session_state.trial_state[ex_i]["selected_words"] = [0]
+    st.session_state.trial_state[ex_i]["anchor_word"] = 0  # NEW
     load_word_into_sliders(ex_i, 0)
     st.session_state.status_message = "Parameters reset for all words."
 
@@ -270,8 +298,12 @@ if not selected_words:
     selected_words = [0]
     st.session_state.trial_state[ex_i]["selected_words"] = selected_words
 
-# anchor word = first selected
-anchor_idx = selected_words[0]
+# CHANGED: anchor word comes from explicit state now
+anchor_idx = st.session_state.trial_state[ex_i]["anchor_word"]
+
+# Clamp anchor just in case
+anchor_idx = max(0, min(anchor_idx, len(transcript_words) - 1))
+st.session_state.trial_state[ex_i]["anchor_word"] = anchor_idx
 
 # Load slider values the first time we land on this anchor
 if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
@@ -320,7 +352,6 @@ with top_right:
                 st.session_state.status_message = "Please type the transcript."
             else:
                 add_user_trial(uploaded_baseline, uploaded_original, uploaded_transcript)
-                # NEW: reset uploader/text_area keys so the next add is clean
                 st.session_state.upload_nonce += 1
                 st.rerun()
 
@@ -415,7 +446,6 @@ c1, c2, c3 = st.columns(3)
 with c1:
     st.button("Submit changes", on_click=submit_all_changes, args=(ex_i,), use_container_width=True)
 with c2:
-    # reset selected words (not just one)
     st.button("Reset word(s)", on_click=reset_word, args=(ex_i, anchor_idx), use_container_width=True)
 with c3:
     st.button("Reset all", on_click=reset_all, args=(ex_i,), use_container_width=True)
@@ -423,7 +453,6 @@ with c3:
 st.divider()
 
 st.header("Modified Audio:")
-# Only playable after user submits. Otherwise show a message.
 if ex_i in st.session_state.generated_audio:
     st.audio(st.session_state.generated_audio[ex_i])
 else:
