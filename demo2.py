@@ -374,6 +374,7 @@ if slider_key(ex_i, anchor_idx, "breathiness") not in st.session_state:
 
 
 # --- UI STARTS HERE ---
+st.write("TEST VERSION GREEN BUTTONS")
 
 top_left, top_right = st.columns([7, 1])
 with top_left:
