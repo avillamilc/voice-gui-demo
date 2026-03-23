@@ -1,4 +1,4 @@
 streamlit==1.37.1
-streamlit-extras
-pandas
+streamlit-extras==0.4.7
+pandas==2.2.2
 numpy
